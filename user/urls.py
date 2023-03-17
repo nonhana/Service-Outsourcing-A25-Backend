@@ -3,5 +3,6 @@ import user.views
 
 urlpatterns = [
     path("getuserlist", user.views.userlist),
-    path("register", user.views.register)
+    path("register", user.views.register),
+    path('login', user.views.login)
 ]

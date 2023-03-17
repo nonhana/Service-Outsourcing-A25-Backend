@@ -31,6 +31,9 @@ ALLOWED_HOSTS = []
 # Application definition
 
 INSTALLED_APPS = [
+    # 解决跨域问题引入的插件
+    'corsheaders',
+
     "django.contrib.admin",
     "django.contrib.auth",
     "django.contrib.contenttypes",
@@ -38,7 +41,8 @@ INSTALLED_APPS = [
     "django.contrib.messages",
     "django.contrib.staticfiles",
 
-    "user.apps.UserConfig"
+    "user.apps.UserConfig",
+    "model.apps.ModelConfig"
 ]
 
 MIDDLEWARE = [
@@ -46,6 +50,7 @@ MIDDLEWARE = [
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     # 暂时禁止跨域问题检测
+    'corsheaders.middleware.CorsMiddleware',
     # "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
@@ -123,3 +128,22 @@ STATIC_URL = "static/"
 # https://docs.djangoproject.com/en/4.1/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+
+# 添加 django-cors-headers 的白名单, 使白名单中的 host 可以进行跨域请求
+CORS_ORIGIN_ALLOW_ALL = True
+# CORS_ORIGIN_WHITELIST = (
+#     # 白名单:
+#     '127.0.0.1:8080',
+#     'localhost:8080',
+
+#     '127.0.0.1:8081',
+#     'localhost:8081',
+
+#     'localhost:8000',
+#     '127.0.0.1:8000'
+
+#     # 添加白名单
+#     'www.baidu.com:8080'
+# )
+
+CORS_ALLOW_CREDENTIALS = True
