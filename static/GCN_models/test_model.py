@@ -1,82 +1,58 @@
 import os
-from django.http import JsonResponse
-from django.views.decorators.csrf import csrf_exempt
-import json
+import matplotlib.pyplot as plt
 import networkx as nx
+import matplotlib.pyplot as plt
 import torch
 from torch_geometric.data import Data
 from torch_geometric.nn import GCNConv
 from torch.nn import Linear
-# 导入model表定义
-from model.models import Model
 
 
-# 定义读取文件的类
-class FileToData:
-    def __init__(self):
-        self.model_nodes = {}
-        self.model_edges = []
-        # 节点类别列表
-        self.node_type = ['n', 'm1', 'm2', 'm3', 'm4', 'm5', 'm6']
-        # 边类别列表
-        self.edge_type = ['r1_startnode', 'r1_name', 'r1_endnode',
-                          'r2_startnode', 'r2_name', 'r2_endnode',
-                          'r3_startnode', 'r3_name', 'r3_endnode',
-                          'r4_startnode', 'r4_name', 'r4_endnode',
-                          'r5_startnode', 'r5_name', 'r5_endnode',
-                          'r6_startnode', 'r6_name', 'r6_endnode']
+class DataSource:
+    def __init__(self, filename):
         # 根节点
-        self.n = []
+        self.n_node = []
         # 第一条边的相关属性
         self.r1_startnode = []
         self.r1_name = []
         self.r1_endnode = []
         # 第二节点
-        self.m1 = []
+        self.m1_node = []
         # 第二条边的相关属性
         self.r2_startnode = []
         self.r2_name = []
         self.r2_endnode = []
         # 第三节点
-        self.m2 = []
+        self.m2_node = []
         # 第三条边的相关属性
         self.r3_startnode = []
         self.r3_name = []
         self.r3_endnode = []
         # 第四节点==
-        self.m3 = []
+        self.m3_node = []
         # 第四条边的相关属性
         self.r4_startnode = []
         self.r4_name = []
         self.r4_endnode = []
         # 第五节点(公司)
-        self.m4 = []
+        self.m4_node = []
         # 第五条边的相关属性
         self.r5_startnode = []
         self.r5_name = []
         self.r5_endnode = []
         # 第六节点(产品小类)
-        self.m5 = []
+        self.m5_node = []
         # 第六条边的相关属性
         self.r6_startnode = []
         self.r6_name = []
         self.r6_endnode = []
         # 第七节点
-        self.m6 = []
+        self.m6_node = []
+        # 节点
+        self.node = []
+        # 边
+        self.edge = []
 
-    def get_node_value(self, key):
-        if key in self.node_type:
-            return getattr(self, key)
-        else:
-            raise ValueError(f"Invalid key: {key}")
-
-    def get_edge_value(self, key):
-        if key in self.edge_type:
-            return getattr(self, key)
-        else:
-            raise ValueError(f"Invalid key: {key}")
-
-    def save_data(self, filename):
         file_handler = open(filename, mode='r')
         node_num = 0
         node_flag = False
@@ -99,14 +75,28 @@ class FileToData:
 
             # 读取节点
             if node_flag and line.strip() != '' and line.strip().find('节点end===') == -1 and line.strip().find('节点start===') == -1:
-                if line.strip() not in self.get_node_value(self.node_type[node_num-1]):
-                    node_item = {
-                        'label': line.strip(),
-                        'value': line.strip()
-                    }
-                    self.get_node_value(
-                        self.node_type[node_num-1]).append(node_item)
-
+                if node_num == 1:
+                    if line.strip() not in self.n_node:
+                        self.n_node.append(line.strip())
+                if node_num == 2:
+                    if line.strip() not in self.m1_node:
+                        self.m1_node.append(line.strip())
+                if node_num == 3:
+                    if line.strip() not in self.m2_node:
+                        self.m2_node.append(line.strip())
+                if node_num == 4:
+                    if line.strip() not in self.m3_node:
+                        self.m3_node.append(line.strip())
+                if node_num == 5:
+                    if line.strip() not in self.m4_node:
+                        self.m4_node.append(line.strip())
+                if node_num == 6:
+                    if line.strip() not in self.m5_node:
+                        self.m5_node.append(line.strip())
+                if node_num == 7:
+                    if line.strip() not in self.m6_node:
+                        self.m6_node.append(line.strip())
+                self.node.append(line.strip())
             # 读取边
             if edge_flag == 1 and line.strip() != '' and line.strip().find('边end===') == -1 and line.strip().find('边start===') == -1:
                 if edge_num == 1:
@@ -148,19 +138,48 @@ class FileToData:
                 if edge_num == 6:
                     self.r6_endnode.append(line.strip())
 
-        # 节点转为字典
-        for item in self.node_type:
-            self.model_nodes[item] = self.get_node_value(item)
-        # 边转为字典
-        for i in range(int(len(self.edge_type)/3)):
-            for index in range(len(self.get_edge_value(self.edge_type[i*3+0]))):
-                edge_item = {
-                    'id': len(self.model_edges),
-                    'start': self.get_edge_value(self.edge_type[i*3+0])[index],
-                    'name': self.get_edge_value(self.edge_type[i*3+1])[index],
-                    'end': self.get_edge_value(self.edge_type[i*3+2])[index]
-                }
-                self.model_edges.append(edge_item)
+        for i in range(len(self.r1_startnode)):
+            item = ()
+            item += (self.r1_startnode[i],)
+            item += (self.r1_endnode[i],)
+            item += (1.0,)
+            self.edge.append(item)
+            del item
+        for i in range(len(self.r2_startnode)):
+            item = ()
+            item += (self.r2_startnode[i],)
+            item += (self.r2_endnode[i],)
+            item += (1.0,)
+            self.edge.append(item)
+            del item
+        for i in range(len(self.r3_startnode)):
+            item = ()
+            item += (self.r3_startnode[i],)
+            item += (self.r3_endnode[i],)
+            item += (1.0,)
+            self.edge.append(item)
+            del item
+        for i in range(len(self.r4_startnode)):
+            item = ()
+            item += (self.r4_startnode[i],)
+            item += (self.r4_endnode[i],)
+            item += (1.0,)
+            self.edge.append(item)
+            del item
+        for i in range(len(self.r5_startnode)):
+            item = ()
+            item += (self.r5_startnode[i],)
+            item += (self.r5_endnode[i],)
+            item += (1.0,)
+            self.edge.append(item)
+            del item
+        for i in range(len(self.r6_startnode)):
+            item = ()
+            item += (self.r6_startnode[i],)
+            item += (self.r6_endnode[i],)
+            item += (1.0,)
+            self.edge.append(item)
+            del item
 
 
 # 实现邻接表
@@ -212,12 +231,10 @@ class IndustryGraph:
         self.labels = []
         # 边矩阵
         self.edge_matrix = []
-        # 边对象矩阵
-        self.edge_list = []
-        # nx的图对象
+        # 新的图对象
         self.G = nx.DiGraph()
 
-    # 增加顶点
+    # 增加顶点，具有属性：id，类型，名称
     def addVertex(self, key, type, name):
         self.position.append(self.numVertices)
         if name not in self.name_labels:
@@ -227,6 +244,17 @@ class IndustryGraph:
         newVertex = Vertex(key, type, name)
         self.vertList[key] = newVertex
         return newVertex
+
+    # 返回某个顶点的信息
+    def getVertex(self, n):
+        if n in self.vertList:
+            return self.vertList[n]
+        else:
+            return None
+
+    # 判断顶点是否在邻接表中
+    def __contains__(self, n):
+        return n in self.vertList
 
     # 增加边
     def addEdge(self, f, t, name, const=0):
@@ -253,7 +281,13 @@ class IndustryGraph:
                 row.append(0)
             self.matrix.append(row)
 
+    # 遍历邻接矩阵
+    def printMatrix(self):
+        for i in range(len(self.matrix)):
+            print(self.matrix[i])
+
     # 根据邻接矩阵写出边矩阵
+
     def build_edge_matrix(self):
         start = []
         end = []
@@ -275,14 +309,15 @@ class IndustryGraph:
         return iter(self.vertList.values())
 
     # 特征值
-    def feature_calculate(self):
+    def feature_calculate(self, filename):
         # 计算节点的中心度
         eigenvector = nx.eigenvector_centrality(self.visble)
         list = []
         for item in eigenvector:
             list.append(eigenvector[item])
         # 计算度中心度 紧密中心度 中介中心度
-        self.add_node_edge(self.name_labels, self.edge_list)
+        handler = DataSource(filename)
+        self.add_node_edge(handler.node, handler.edge)
         d = nx.degree_centrality(self.G)
         c = nx.closeness_centrality(self.G)
         b = nx.betweenness_centrality(self.G)
@@ -297,68 +332,91 @@ class IndustryGraph:
         return
 
 
+# 画点函数
+def visualize_embedding(h, color, epoch=None, loss=None):
+    # figsize:生成图像大小
+    plt.figure(figsize=(7, 7))
+    plt.xticks([])
+    plt.yticks([])
+    h = h.detach().cpu().numpy()
+    plt.scatter(h[:, 0], h[:, 1], s=140, c=color, cmap="Set2")
+    if epoch is not None and loss is not None:
+        plt.xlabel(f'Epoch:{epoch},Loss:{loss.item():.4f}', fontsize=16)
+    plt.show()
+
+
 class DataSet:
-    def __init__(self, model_nodes, model_edges):
+    def __init__(self, filename):
+        # 读取数据
+        self.handler = DataSource(filename)
         # 添加顶点
-        # 创建一个空图
         self.g = IndustryGraph()
         # 根节点
         self.g.addVertex(self.g.getVertices(), "industry",
-                         model_nodes['n'][0]['label'])
+                         self.handler.n_node[0])
         self.g.labels.append(1)
         # 一级产业
-        for item in model_nodes['m1']:
-            if item['label'] not in self.g.name_labels:
-                self.g.addVertex(self.g.getVertices(),
-                                 "industry", item['label'])
+        for item in self.handler.m1_node:
+            if item not in self.g.name_labels:
+                self.g.addVertex(self.g.getVertices(), "industry", item)
                 self.g.labels.append(2)
         # 二级产业
-        for item in model_nodes['m2']:
-            if item['label'] not in self.g.name_labels:
-                self.g.addVertex(self.g.getVertices(),
-                                 "industry", item['label'])
+        for item in self.handler.m2_node:
+            if item not in self.g.name_labels:
+                self.g.addVertex(self.g.getVertices(), "industry", item)
                 self.g.labels.append(3)
         # 公司
-        for item in model_nodes['m3']:
-            if item['label'] not in self.g.name_labels:
-                self.g.addVertex(self.g.getVertices(),
-                                 "company", item['label'])
+        for item in self.handler.m3_node:
+            if item not in self.g.name_labels:
+                self.g.addVertex(self.g.getVertices(), "company", item)
                 self.g.labels.append(4)
         # 主营产品
-        for item in model_nodes['m4']:
-            if item['label'] not in self.g.name_labels:
-                self.g.addVertex(self.g.getVertices(),
-                                 "product", item['label'])
+        for item in self.handler.m4_node:
+            if item not in self.g.name_labels:
+                self.g.addVertex(self.g.getVertices(), "product", item)
                 self.g.labels.append(5)
         # 产品小类
-        for item in model_nodes['m5']:
-            if item['label'] not in self.g.name_labels:
-                self.g.addVertex(self.g.getVertices(),
-                                 "littleproduct", item['label'])
+        for item in self.handler.m5_node:
+            if item not in self.g.name_labels:
+                self.g.addVertex(self.g.getVertices(), "littleproduct", item)
                 self.g.labels.append(6)
         # 上游材料
-        for item in model_nodes['m6']:
-            if item['label'] not in self.g.name_labels:
-                self.g.addVertex(self.g.getVertices(),
-                                 "material", item['label'])
+        for item in self.handler.m6_node:
+            if item not in self.g.name_labels:
+                self.g.addVertex(self.g.getVertices(), "material", item)
                 self.g.labels.append(7)
 
         # 初始化邻接矩阵
         self.g.initMatrix(self.g.getVertices())
 
         # 添加边
-        for i in range(len(model_edges)):
-            self.g.addEdge(self.g.name_labels.index(model_edges[i]['start']), self.g.name_labels.index(
-                model_edges[i]['end']), model_edges[i]['name'], 1)
-            item = ()
-            item += (model_edges[i]['start'],)
-            item += (model_edges[i]['end'],)
-            item += (1.0,)
-            self.g.edge_list.append(item)
-            del item
+        # 一级产业-->根节点
+        for i in range(len(self.handler.r1_endnode)):
+            self.g.addEdge(self.g.name_labels.index(self.handler.r1_startnode[i]), self.g.name_labels.index(
+                self.handler.r1_endnode[i]), self.handler.r1_name[i], 1)
+        # 二级产业-->一级产业
+        for i in range(len(self.handler.r2_endnode)):
+            self.g.addEdge(self.g.name_labels.index(self.handler.r2_startnode[i]), self.g.name_labels.index(
+                self.handler.r2_endnode[i]), self.handler.r2_name[i], 1)
+        # 公司-->二级产业
+        for i in range(len(self.handler.r3_endnode)):
+            self.g.addEdge(self.g.name_labels.index(self.handler.r3_startnode[i]), self.g.name_labels.index(
+                self.handler.r3_endnode[i]), self.handler.r3_name[i], 1)
+        # 产品-->公司
+        for i in range(len(self.handler.r4_endnode)):
+            self.g.addEdge(self.g.name_labels.index(self.handler.r4_startnode[i]), self.g.name_labels.index(
+                self.handler.r4_endnode[i]), self.handler.r4_name[i], 1)
+        # 产品小类-->产品
+        for i in range(len(self.handler.r5_endnode)):
+            self.g.addEdge(self.g.name_labels.index(self.handler.r5_startnode[i]), self.g.name_labels.index(
+                self.handler.r5_endnode[i]), self.handler.r5_name[i], 1)
+        # 上游材料-->产品小类
+        for i in range(len(self.handler.r6_endnode)):
+            self.g.addEdge(self.g.name_labels.index(self.handler.r6_startnode[i]), self.g.name_labels.index(
+                self.handler.r6_endnode[i]), self.handler.r6_name[i], 1)
 
         self.g.build_edge_matrix()
-        self.g.feature_calculate()
+        self.g.feature_calculate(filename)
 
         # 定义节点特征向量x和标签y
         x = torch.tensor(self.g.feature_vector, dtype=torch.float)
@@ -411,128 +469,16 @@ def test(model, data):
     return acc
 
 
-# 返回所有提交过的产业链模型
-def modellist(request):
-    model_list = list(Model.objects.values(
-        'model_id', 'model_name', 'model_detail', 'model_picture', 'user_id'))
-    if len(model_list) > 0:
-        return JsonResponse({
-            'result_code': 0,
-            'result_msg': "获取产业链列表成功",
-            'model_list': model_list
-        })
-
-
-# 根据id获取产业链模型
-def modelinfo(request):
-    model_id = request.GET.get('model_id')
-    model = Model.objects.filter(model_id=model_id).values()[0]
-
-    return JsonResponse({
-        'result_code': 0,
-        'result_msg': "获取产业链数据成功",
-        'model_data': model,
-    })
-
-
-# 提交产业链模型到数据库
-def uploadmodel(request):
-    info = json.loads(request.body)
-    model_list = list(Model.objects.values())
-    for item in model_list:
-        if info['model_nodes'] == item['model_nodes'] and info['model_edges'] == item['model_edges']:
-            return JsonResponse({
-                'result_code': 1,
-                'result_msg': '请勿重复提交相同模型',
-            })
-    model = Model.objects.create(model_name=info['model_name'],
-                                 model_type=info['model_type'],
-                                 model_detail=info['model_detail'],
-                                 model_nodes=info['model_nodes'],
-                                 model_edges=info['model_edges'],
-                                 create_time=info['create_time'],
-                                 update_time=info['update_time'],
-                                 user_id=info['user_id'],)
-    return JsonResponse({
-        'result_code': 0,
-        'result_msg': '提交模型成功',
-        'model_id': model.model_id
-    })
-
-
-# 接收前端传来的txt文件，并保存在本地，之后转存数据库
-@csrf_exempt
-def upload_file(request):
-    if request.method == 'POST':
-        file = request.FILES.get('file')
-        if file:
-            filename = file.name
-            parent_dir = os.path.join(os.path.dirname(
-                os.path.abspath(__file__)), '..')
-            file_path = os.path.join(
-                parent_dir, 'static', 'model_file', filename)
-            with open(file_path, 'wb') as f:
-                for chunk in file.chunks():
-                    f.write(chunk)
-
-            saved_file = FileToData()
-            saved_file.save_data(file_path)
-            model_nodes = saved_file.model_nodes
-            model_edges = saved_file.model_edges
-
-            return JsonResponse({
-                'result_code': 0,
-                'result_msg': "txt文件上传成功",
-                'model_nodes': model_nodes,
-                'model_edges': model_edges
-            })
-        else:
-            return JsonResponse({
-                'result_code': 1,
-                'result_msg': "txt文件上传失败，请重新上传"
-            })
-
-
-# 对指定的产业链模型进行完整性评估
-def integrity(request):
-    model_id = request.GET.get('model_id')
-    model = Model.objects.filter(model_id=model_id).values(
-        'model_id', 'model_nodes', 'model_edges')[0]
-
-    model_nodes = json.loads(model['model_nodes'].replace("'", "\""))
-    model_edges = json.loads(model['model_edges'].replace("'", "\""))
-
+if __name__ == "__main__":
     # =====================测试代码===================== #
-    dataset = DataSet(model_nodes=model_nodes, model_edges=model_edges).data
-    # 加载模型
     parent_dir = os.path.join(os.path.dirname(
         os.path.abspath(__file__)), '..')
     file_path = os.path.join(
-        parent_dir, 'static', 'GCN_models', 'gcn_model.pth')
-    GCN_model = GCN(dataset.num_features, dataset.num_classes)
-    GCN_model.load_state_dict(torch.load(file_path))
+        parent_dir, 'model_file', 'data膜材料.txt')
+    dataset = DataSet(file_path).data
+    # 加载模型
+    model = GCN(dataset.num_features, dataset.num_classes)
+    model.load_state_dict(torch.load('gcn_model.pth'))
     # 进行测试
-    test_acc = "{:.4f}".format(test(model=GCN_model, data=dataset)*100)
-
-    return JsonResponse({
-        'result_code': 0,
-        'result_msg': "完整性分析成功",
-        'integrity_score': test_acc,
-        'integrity_evaluation': "完整性分析的评价",
-    })
-
-
-# 对指定的产业链模型进行风险评估
-def riskanalyse(request):
-    model_id = request.GET.get('model_id')
-    model = Model.objects.filter(model_id=model_id).values(
-        'model_id', 'model_nodes', 'model_edges')[0]
-
-    return JsonResponse({
-        'result_code': 0,
-        'result_msg': "风险评估成功",
-        'model_data': model,
-        'risk_score': 100.0,
-        'risk_main': "所会发生的主要风险",
-        'risk_method': "规避风险的主要措施"
-    })
+    test_acc = test(model=model, data=dataset)
+    print(f"Test Accuracy: {test_acc:.4f}")
