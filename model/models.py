@@ -13,4 +13,5 @@ class Model(models.Model):
     model_edges = models.TextField(max_length=20000)
     create_time = models.CharField(max_length=100)
     update_time = models.CharField(max_length=100)
+    update_method = models.IntegerField(max_length=10, default=0)
     user = models.ForeignKey(User, on_delete=models.CASCADE)

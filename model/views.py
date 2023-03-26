@@ -85,30 +85,32 @@ class FileToData:
         for line in file_handler:
             # 设置读取状态
             if line.strip().find('节点start===') != -1:
-                node_num = node_num+1
+                node_num = node_num + 1
                 node_flag = True
             if line.strip().find('节点end===') != -1:
                 node_flag = False
             if line.strip().find('边start===') != -1:
-                edge_num = edge_num+1
+                edge_num = edge_num + 1
                 edge_flag = 1
             if edge_flag > 0 and line.strip() == '':
-                edge_flag = edge_flag+1
+                edge_flag = edge_flag + 1
             if line.strip().find('边end===') != -1:
                 edge_flag = 0
 
             # 读取节点
-            if node_flag and line.strip() != '' and line.strip().find('节点end===') == -1 and line.strip().find('节点start===') == -1:
-                if line.strip() not in self.get_node_value(self.node_type[node_num-1]):
+            if node_flag and line.strip() != '' and line.strip().find('节点end===') == -1 and line.strip().find(
+                    '节点start===') == -1:
+                if line.strip() not in self.get_node_value(self.node_type[node_num - 1]):
                     node_item = {
                         'label': line.strip(),
                         'value': line.strip()
                     }
                     self.get_node_value(
-                        self.node_type[node_num-1]).append(node_item)
+                        self.node_type[node_num - 1]).append(node_item)
 
             # 读取边
-            if edge_flag == 1 and line.strip() != '' and line.strip().find('边end===') == -1 and line.strip().find('边start===') == -1:
+            if edge_flag == 1 and line.strip() != '' and line.strip().find('边end===') == -1 and line.strip().find(
+                    '边start===') == -1:
                 if edge_num == 1:
                     self.r1_startnode.append(line.strip())
                 if edge_num == 2:
@@ -121,7 +123,8 @@ class FileToData:
                     self.r5_startnode.append(line.strip())
                 if edge_num == 6:
                     self.r6_startnode.append(line.strip())
-            if edge_flag == 2 and line.strip() != '' and line.strip().find('边end===') == -1 and line.strip().find('边start===') == -1:
+            if edge_flag == 2 and line.strip() != '' and line.strip().find('边end===') == -1 and line.strip().find(
+                    '边start===') == -1:
                 if edge_num == 1:
                     self.r1_name.append(line.strip())
                 if edge_num == 2:
@@ -134,7 +137,8 @@ class FileToData:
                     self.r5_name.append(line.strip())
                 if edge_num == 6:
                     self.r6_name.append(line.strip())
-            if edge_flag == 3 and line.strip() != '' and line.strip().find('边end===') == -1 and line.strip().find('边start===') == -1:
+            if edge_flag == 3 and line.strip() != '' and line.strip().find('边end===') == -1 and line.strip().find(
+                    '边start===') == -1:
                 if edge_num == 1:
                     self.r1_endnode.append(line.strip())
                 if edge_num == 2:
@@ -152,13 +156,13 @@ class FileToData:
         for item in self.node_type:
             self.model_nodes[item] = self.get_node_value(item)
         # 边转为字典
-        for i in range(int(len(self.edge_type)/3)):
-            for index in range(len(self.get_edge_value(self.edge_type[i*3+0]))):
+        for i in range(int(len(self.edge_type) / 3)):
+            for index in range(len(self.get_edge_value(self.edge_type[i * 3 + 0]))):
                 edge_item = {
                     'id': len(self.model_edges),
-                    'start': self.get_edge_value(self.edge_type[i*3+0])[index],
-                    'name': self.get_edge_value(self.edge_type[i*3+1])[index],
-                    'end': self.get_edge_value(self.edge_type[i*3+2])[index]
+                    'start': self.get_edge_value(self.edge_type[i * 3 + 0])[index],
+                    'name': self.get_edge_value(self.edge_type[i * 3 + 1])[index],
+                    'end': self.get_edge_value(self.edge_type[i * 3 + 2])[index]
                 }
                 self.model_edges.append(edge_item)
 
@@ -302,6 +306,8 @@ class DataSet:
         # 添加顶点
         # 创建一个空图
         self.g = IndustryGraph()
+        self.nodes_num = 0
+        self.edges_num = 0
         # 根节点
         self.g.addVertex(self.g.getVertices(), "industry",
                          model_nodes['n'][0]['label'])
@@ -372,6 +378,8 @@ class DataSet:
         self.data = Data(x=x, y=y, edge_index=edge_index,
                          train_mask=train_mask)
         self.data.num_classes = int(torch.max(self.data.y).item() + 1)
+        self.nodes_num = len(self.g.name_labels)
+        self.edges_num = len(self.g.edge_list)
 
 
 class GCN(torch.nn.Module):
@@ -398,6 +406,7 @@ class GCN(torch.nn.Module):
         return out, h
 
 
+# ====================这边开始，写接口函数！！！====================
 # 测试函数
 def test(model, data):
     model.eval()
@@ -452,7 +461,7 @@ def uploadmodel(request):
                                  model_edges=info['model_edges'],
                                  create_time=info['create_time'],
                                  update_time=info['update_time'],
-                                 user_id=info['user_id'],)
+                                 user_id=info['user_id'], )
     return JsonResponse({
         'result_code': 0,
         'result_msg': '提交模型成功',
@@ -497,13 +506,13 @@ def upload_file(request):
 def integrity(request):
     model_id = request.GET.get('model_id')
     model = Model.objects.filter(model_id=model_id).values(
-        'model_id', 'model_nodes', 'model_edges')[0]
+        'model_id', 'model_nodes', 'model_edges', 'update_method')[0]
 
     model_nodes = json.loads(model['model_nodes'].replace("'", "\""))
     model_edges = json.loads(model['model_edges'].replace("'", "\""))
-
     # =====================测试代码===================== #
-    dataset = DataSet(model_nodes=model_nodes, model_edges=model_edges).data
+    data_source = DataSet(model_nodes=model_nodes, model_edges=model_edges)
+    dataset = data_source.data
     # 加载模型
     parent_dir = os.path.join(os.path.dirname(
         os.path.abspath(__file__)), '..')
@@ -512,13 +521,72 @@ def integrity(request):
     GCN_model = GCN(dataset.num_features, dataset.num_classes)
     GCN_model.load_state_dict(torch.load(file_path))
     # 进行测试
-    test_acc = "{:.4f}".format(test(model=GCN_model, data=dataset)*100)
-
+    test_acc = "{:.4f}".format(test(model=GCN_model, data=dataset) * 100)
+    # 根据模型以及其所得分数来输出模型存在问题
+    integrity_info = {
+        'nodes_num': {
+            'n': len(model_nodes['n']),
+            'm1': len(model_nodes['m1']),
+            'm2': len(model_nodes['m2']),
+            'm3': len(model_nodes['m3']),
+            'm4': len(model_nodes['m4']),
+            'm5': len(model_nodes['m5']),
+            'm6': len(model_nodes['m6']),
+            'total': data_source.nodes_num
+        },
+        'edges_num': len(model_edges),
+        'existed_questions': [],
+        'solutions': []
+    }
+    label_list = ['n', 'm1', 'm2', 'm3', 'm4', 'm5', 'm6']
+    name_list = ['所属行业', '附属行业', '子行业', '涉及公司', '主营产品', '产品小类', '涉及材料']
+    # 总体评价
+    if test(model=GCN_model, data=dataset) * 100 >= 80:
+        integrity_evaluation = "该模型的完整性表现很好，节点和节点之间的关系完善，是一套标准的产业链模型。"
+    elif test(model=GCN_model, data=dataset) * 100 >= 60:
+        integrity_evaluation = "该模型的完整性表现良好，存在着些许的缺陷，可以尝试根据提示的方案进行模型的改进。"
+    elif test(model=GCN_model, data=dataset) * 100 >= 40:
+        integrity_evaluation = "该模型的完整性表现可能存在着一定的问题，请根据提示的方案进行模型的改进。"
+    elif test(model=GCN_model, data=dataset) * 100 >= 20:
+        integrity_evaluation = "该模型存在着较大的产业链完整性缺陷，可能是手动输入模型的节点个数/边个数不足导致的。"
+    else:
+        integrity_evaluation = "该模型的完整性评估较低，请重新检查该模型的输入，调整后重新进行分析。"
+    # 问题分析
+    flag_list = [False, False, False, False]
+    # 1.进行Model的结构分析
+    for i in range(len(label_list) - 1):
+        if len(model_nodes[label_list[i]]) > len(model_nodes[label_list[i + 1]]):
+            integrity_info['existed_questions'].append(name_list[i + 1] + "的节点个数小于" + name_list[i] + "的个数；")
+            flag_list[0] = True
+    for i in range(len(label_list)):
+        if len(model_nodes[label_list[i]]) == 0:
+            integrity_info['existed_questions'].append('该模型中缺少"' + name_list[i] + '"类型的节点；')
+            flag_list[1] = True
+    # 2.进行Model的节点和边个数的分析
+    if len(model_edges) < data_source.nodes_num - 1:
+        integrity_info['existed_questions'].append("该模型中存在有孤立点(无任何边)；")
+        flag_list[2] = True
+    if data_source.nodes_num < 200:
+        integrity_info['existed_questions'].append("该模型中包含的样本节点数量过少；")
+        flag_list[3] = True
+    # 解决方案
+    for i in range(len(flag_list)):
+        if flag_list[i]:
+            if i == 0:
+                integrity_info['solutions'].append("可尝试重新调整模型，确保下一级的节点个数>=上一级的节点个数；")
+            elif i == 1:
+                integrity_info['solutions'].append("可尝试重新调整模型，确保模型中没有空的类型节点；")
+            elif i == 2:
+                integrity_info['solutions'].append("可尝试重新调整模型，将模型的各个节点边补充完整；")
+            else:
+                integrity_info['solutions'].append("可尝试重新调整模型，多添加几个节点，以便于更准确的完整性分析；")
     return JsonResponse({
         'result_code': 0,
         'result_msg': "完整性分析成功",
+        'update_method': model['update_method'],
         'integrity_score': test_acc,
-        'integrity_evaluation': "完整性分析的评价",
+        'integrity_evaluation': integrity_evaluation,
+        'integrity_info': integrity_info
     })
 
 
@@ -532,7 +600,7 @@ def riskanalyse(request):
         'result_code': 0,
         'result_msg': "风险评估成功",
         'model_data': model,
-        'risk_score': 100.0,
+        'risk_item_list': [],
         'risk_main': "所会发生的主要风险",
         'risk_method': "规避风险的主要措施"
     })
