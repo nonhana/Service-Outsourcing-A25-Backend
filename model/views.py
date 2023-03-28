@@ -469,6 +469,29 @@ def uploadmodel(request):
     })
 
 
+# 根据id更新产业链数据
+def updatemodel(request):
+    info = json.loads(request.body)
+    model_id = info['model_id']
+    model = Model.objects.get(model_id=model_id)  # 直接获取模型实例对象
+    if info['model_nodes'] == model.model_nodes and info['model_edges'] == model.model_edges:
+        return JsonResponse({
+            'result_code': 1,
+            'result_msg': '请先更新一下模型再提交哦~',
+        })
+    model.model_name = info['model_name']
+    model.model_type = info['model_type']
+    model.model_nodes = info['model_nodes']
+    model.model_edges = info['model_edges']
+    model.update_time = info['update_time']
+    model.model_detail = info['model_detail']
+    model.save()  # 调用save()方法将更改保存到数据库
+    return JsonResponse({
+        'result_code': 0,
+        'result_msg': '修改模型成功',
+    })
+
+
 # 接收前端传来的txt文件，并保存在本地，之后转存数据库
 @csrf_exempt
 def upload_file(request):
@@ -556,30 +579,34 @@ def integrity(request):
     # 1.进行Model的结构分析
     for i in range(len(label_list) - 1):
         if len(model_nodes[label_list[i]]) > len(model_nodes[label_list[i + 1]]):
-            integrity_info['existed_questions'].append(name_list[i + 1] + "的节点个数小于" + name_list[i] + "的个数；")
+            integrity_info['existed_questions'].append(
+                name_list[i + 1] + "的节点个数小于" + name_list[i] + "的个数")
             flag_list[0] = True
     for i in range(len(label_list)):
         if len(model_nodes[label_list[i]]) == 0:
-            integrity_info['existed_questions'].append('该模型中缺少"' + name_list[i] + '"类型的节点；')
+            integrity_info['existed_questions'].append(
+                '该模型中缺少"' + name_list[i] + '"类型的节点')
             flag_list[1] = True
     # 2.进行Model的节点和边个数的分析
     if len(model_edges) < data_source.nodes_num - 1:
-        integrity_info['existed_questions'].append("该模型中存在有孤立点(无任何边)；")
+        integrity_info['existed_questions'].append("该模型中存在有孤立点(无任何边)")
         flag_list[2] = True
     if data_source.nodes_num < 200:
-        integrity_info['existed_questions'].append("该模型中包含的样本节点数量过少；")
+        integrity_info['existed_questions'].append("该模型中包含的样本节点数量过少")
         flag_list[3] = True
     # 解决方案
     for i in range(len(flag_list)):
         if flag_list[i]:
             if i == 0:
-                integrity_info['solutions'].append("可尝试重新调整模型，确保下一级的节点个数>=上一级的节点个数；")
+                integrity_info['solutions'].append(
+                    "可尝试重新调整模型，确保下一级的节点个数>=上一级的节点个数")
             elif i == 1:
-                integrity_info['solutions'].append("可尝试重新调整模型，确保模型中没有空的类型节点；")
+                integrity_info['solutions'].append("可尝试重新调整模型，确保模型中没有空的类型节点")
             elif i == 2:
-                integrity_info['solutions'].append("可尝试重新调整模型，将模型的各个节点边补充完整；")
+                integrity_info['solutions'].append("可尝试重新调整模型，将模型的各个节点边补充完整")
             else:
-                integrity_info['solutions'].append("可尝试重新调整模型，多添加几个节点，以便于更准确的完整性分析；")
+                integrity_info['solutions'].append(
+                    "可尝试重新调整模型，多添加几个节点，以便于更准确的完整性分析")
     return JsonResponse({
         'result_code': 0,
         'result_msg': "完整性分析成功",

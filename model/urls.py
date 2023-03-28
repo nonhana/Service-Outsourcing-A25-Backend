@@ -7,5 +7,6 @@ urlpatterns = [
     path('modelinfo', model.views.modelinfo),
     path('integrity', model.views.integrity),
     path('risk', model.views.riskanalyse),
-    path('upload', model.views.upload_file)
+    path('upload', model.views.upload_file),
+    path('update', model.views.updatemodel)
 ]
