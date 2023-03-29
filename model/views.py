@@ -1,11 +1,16 @@
 import os
+import uuid
+import base64
+from django.core.files.base import ContentFile
+from django.core.files.storage import default_storage
 from django.http import JsonResponse
+from django.conf import settings
 from django.views.decorators.csrf import csrf_exempt
 import json
 import networkx as nx
 import torch
 from torch_geometric.data import Data
-from torch_geometric.nn import GCNConv
+from torch_geometric.nn import GATConv
 from torch.nn import Linear
 # 导入model表定义
 from model.models import Model
@@ -388,9 +393,9 @@ class GCN(torch.nn.Module):
         torch.manual_seed(520)
         self.num_features = num_features
         self.num_classes = num_classes
-        self.conv1 = GCNConv(self.num_features, 16)
-        self.conv2 = GCNConv(16, 32)
-        self.conv3 = GCNConv(32, self.num_classes)
+        self.conv1 = GATConv(self.num_features, 16)
+        self.conv2 = GATConv(16, 32)
+        self.conv3 = GATConv(32, self.num_classes)
         self.classifier = Linear(self.num_classes, self.num_classes)
 
     def forward(self, x, edge_index):
@@ -404,23 +409,10 @@ class GCN(torch.nn.Module):
         # 分类层
         out = self.classifier(h)
         return out, h
-
-
 # ====================这边开始，写接口函数！！！====================
-# 测试函数
-def test(model, data):
-    model.eval()
-    with torch.no_grad():
-        out, _ = model(data.x, data.edge_index)
-        pred = out.argmax(dim=1)
-        correct = float(pred[data.train_mask].eq(
-            data.y[data.train_mask]).sum().item())
-        acc = correct / data.train_mask.sum().item()
-    model.train()
-    return acc
-
-
 # 返回所有提交过的产业链模型
+
+
 def modellist(request):
     model_list = list(Model.objects.values(
         'model_id', 'model_name', 'model_detail', 'model_picture', 'user_id'))
@@ -461,7 +453,8 @@ def uploadmodel(request):
                                  model_edges=info['model_edges'],
                                  create_time=info['create_time'],
                                  update_time=info['update_time'],
-                                 user_id=info['user_id'], )
+                                 user_id=info['user_id'],
+                                 update_method=info['update_method'])
     return JsonResponse({
         'result_code': 0,
         'result_msg': '提交模型成功',
@@ -489,6 +482,20 @@ def updatemodel(request):
     return JsonResponse({
         'result_code': 0,
         'result_msg': '修改模型成功',
+    })
+
+
+# 更新产业链拓扑结构图片
+def updatemodelcover(request):
+    info = json.loads(request.body)
+    model_id = info['model_id']
+    img_url = info['img_url']
+    model = Model.objects.get(model_id=model_id)
+    model.model_picture = img_url
+    model.save()
+    return JsonResponse({
+        'result_code': 0,
+        'result_msg': '更新模型封面图片成功',
     })
 
 
@@ -525,6 +532,30 @@ def upload_file(request):
             })
 
 
+# 将Base64编码的图片保存到本地
+def save_picture(request):
+    def generate_image_name():
+        return str(uuid.uuid4()) + ".png"
+    # 获取 Base64 编码的图片数据
+    base64_data = json.loads(request.body)['img_data']
+    # 将 Base64 编码的图片数据解码为二进制数据
+    format, imgstr = base64_data.split(';base64,')
+    ext = format.split('/')[-1]
+    data = ContentFile(base64.b64decode(imgstr), name='temp.' + ext)
+    # 将二进制数据写入本地文件
+    # 构造相对于项目根目录的路径
+    filename = generate_image_name()
+    file_path = os.path.join(settings.STATICFILES_DIRS[0],
+                             'model_images', filename)
+    default_storage.save(file_path, data)
+    img_url = 'http://127.0.0.1/static/model_images/'+filename
+    return JsonResponse({
+        'result_code': 0,
+        'result_msg': "保存图片成功",
+        'img_url': img_url
+    })
+
+
 # 对指定的产业链模型进行完整性评估
 def integrity(request):
     model_id = request.GET.get('model_id')
@@ -543,6 +574,20 @@ def integrity(request):
         parent_dir, 'static', 'GCN_models', 'gcn_model.pth')
     GCN_model = GCN(dataset.num_features, dataset.num_classes)
     GCN_model.load_state_dict(torch.load(file_path))
+    # 测试函数
+
+    def test(model, data):
+        model.eval()
+        with torch.no_grad():
+            out, _ = model(data.x, data.edge_index)
+            # 将out的形状从(batch_size, num_classes * heads)改为(batch_size, num_classes)
+            out = out.view(-1, dataset.num_classes)
+            pred = out.argmax(dim=1)
+            correct = float(pred[data.train_mask].eq(
+                data.y[data.train_mask]).sum().item())
+            acc = correct / data.train_mask.sum().item()
+        model.train()
+        return acc
     # 进行测试
     test_acc = "{:.4f}".format(test(model=GCN_model, data=dataset) * 100)
     # 根据模型以及其所得分数来输出模型存在问题
