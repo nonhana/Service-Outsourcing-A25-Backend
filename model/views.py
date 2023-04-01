@@ -409,12 +409,15 @@ class GCN(torch.nn.Module):
         # 分类层
         out = self.classifier(h)
         return out, h
+
+
 # ====================这边开始，写接口函数！！！====================
-# 返回所有提交过的产业链模型
 
 
+# 返回所有该用户提交过的产业链模型
 def modellist(request):
-    model_list = list(Model.objects.values(
+    user_id = request.GET.get('user_id')
+    model_list = list(Model.objects.filter(user_id=user_id).values(
         'model_id', 'model_name', 'model_detail', 'model_picture', 'user_id'))
     if len(model_list) > 0:
         return JsonResponse({
