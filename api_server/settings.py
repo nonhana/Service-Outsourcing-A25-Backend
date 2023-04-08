@@ -92,7 +92,6 @@ DATABASES = {
         "NAME": "chain_analyst",
         "USER": "root",
         "PASSWORD": "20021209xiang",
-        # "HOST": "8.130.104.28",
         "HOST": "localhost",
         "POST": "3306"
     }

@@ -15,3 +15,8 @@ class Model(models.Model):
     update_time = models.CharField(max_length=100)
     update_method = models.IntegerField(default=0)
     user = models.ForeignKey(User, on_delete=models.CASCADE)
+    model_riskstatus = models.IntegerField(default=0)
+    model_riskscore = models.IntegerField(default=100)
+    model_riskmain = models.CharField(max_length=100, default="暂无风险")
+    model_riskmethods = models.CharField(max_length=10000, default="暂无相应方法")
+    model_risklist = models.CharField(max_length=100, default="暂无概率数据")

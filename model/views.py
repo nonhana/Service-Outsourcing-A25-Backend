@@ -1,6 +1,11 @@
 import os
 import uuid
 import base64
+import random
+import numpy as np
+from pgmpy.models import BayesianNetwork
+from pgmpy.factors.discrete import TabularCPD
+from pgmpy.inference import VariableElimination
 from django.core.files.base import ContentFile
 from django.core.files.storage import default_storage
 from django.http import JsonResponse
@@ -481,6 +486,7 @@ def updatemodel(request):
     model.model_edges = info['model_edges']
     model.update_time = info['update_time']
     model.model_detail = info['model_detail']
+    model.model_riskstatus = 0
     model.save()  # 调用save()方法将更改保存到数据库
     return JsonResponse({
         'result_code': 0,
@@ -668,14 +674,388 @@ def integrity(request):
 # 对指定的产业链模型进行风险评估
 def riskanalyse(request):
     model_id = request.GET.get('model_id')
-    model = Model.objects.filter(model_id=model_id).values(
-        'model_id', 'model_nodes', 'model_edges')[0]
+    model = Model.objects.get(model_id=model_id)
+
+    if model.model_riskstatus == 0:
+        def Markov(n):
+            b = []
+            for m in range(n):
+                k = 1.0
+                a = []
+                for i in range(n):
+                    if (i < n - 1):
+                        j = random.uniform(0, k)
+                        while (j < 0.1 or j > (1 / n)):
+                            j = random.uniform(0, k)
+                        a.append(j)
+                        k = k - j
+                    else:
+                        a.append(k)
+                b.append(a)
+            # print(b)
+            matrix1 = np.matrix(b)
+            c = []
+            k = 1.0
+            for m in range(n):
+                if (m < n - 1):
+                    l = random.uniform(0, k)
+                    while (l < 0.1 or l > (1 / n)):
+                        l = random.uniform(0, k)
+                    c.append(j)
+                    k = k - l
+                else:
+                    c.append(k)
+            # print(c)
+            vector1 = np.matrix(c)
+            for i in range(100):
+                vector2 = vector1
+                vector1 = vector1 * matrix1
+                # print(i)
+                # print(vector1)
+                if ((vector2 == vector1).all()):
+                    break
+            li = vector1.tolist()
+            ve = []
+            for j in li[0]:
+                mid1 = [j]
+                mid2 = [1 - j]
+                mid = [mid1, mid2]
+                ve.append(mid)
+            return ve
+            # return vector1.tolist()
+
+        sum1 = 0  # 初始化sum1
+        ratedate = []  # 存每种风险的概率
+
+        def fun(a, c, d, n):
+            if (n >= m):
+                b = {}
+                for i in range(n):
+                    b.update({c[i]: a[i]})
+                prob_I = letter_infer.query(variables=[d], evidence=b)
+                global sum1
+                sum1 = sum1 + prob_I.values[1]
+                return
+            a[n] = 0
+            fun(a, c, d, n + 1)
+            a[n] = 1
+            fun(a, c, d, n + 1)
+
+        def solution(n):
+            solut = []
+            if n == 0:
+                solut = ["资源风险:原料采购拓宽提供原料的渠道，适量存储一定的原材料",
+                         "价格风险:关注原材料价格的变动，适时购买原材料",
+                         "欺诈风险:在购买原材料时多调查卖家的情况，在接受订单时多考虑对方是否有能力接收这一订单",
+                         "原料质量风险:在购买原材料时做到严格把控原材料的质量",
+                         "库存原料风险:时刻保证库存原料可以满足正常生产",
+                         "销售风险:根据产品市场价格和原料价格以及需求来决定生产的产品"]
+            if n == 1:
+                solut = ["库存积压:根据业务需求数量和产业链实际运营数量把控库存数量",
+                         "坏账过高:采用先收款后发货，使用订货管理系统记录所有订单的收款状态",
+                         "销售不当:做好财务预算，采购实施OTB管理模式",
+                         "工程质量低劣:确保工程监管到位",
+                         "竣工验收不规范:在工程项目验收中切实增加科技含量和定量分析",
+                         "项目投资失控:预前进行可行性分析，结合现场实际状况做出决策",
+                         "延迟或中断:及时止损，避免扩大沉没成本",
+                         "外包范围、价格不合理:建立完善业务外包管理制度",
+                         "商业贿赂:提高企业监管力度",
+                         "承包费选择不当:根据各类业务和核心主业的关联度，合理确定承包费",
+                         "监控不当:提高监管力度",
+                         "未全面履行:对违约事项和违约责任进行详细的约定;债权人可以让债务人提供相应担保",
+                         "合同纠纷处理不当:建立合同纠纷处理的有效机制，纠纷处理过程中处于举证有力",
+                         "重大疏漏、欺诈:系统包含透明的指挥链、检查和平衡的网络以及明确概述的审计流程"]
+            if n == 2:
+                solut = ["产品、服务价格及供需变化:企业定价要从实现企业战略目标出发，选择恰当的定价目标，综合分析产品成本、市场需求、市场竞争等影响因素，运用科学的方法，灵活的策略，去制定顾客能够接受的价格",
+                         "主要客户、供应商信用风险:认真建立供应商数据库,供应商数据库建立时要认真对供应商做好认真调查,通过调查来排除一些供应商,把合适的供应商纳入数据库",
+                         "税收政策、利率、汇率、股票价格指数变化:实时跟踪，及时把控",
+                         "潜在进入者、竞争者和替代品的竞争风险:提高企业竞争力"]
+            if n == 3:
+                solut = ["俄乌冲突:调整出口战略",
+                         "管制与制裁:合作共同创建东亚产业链供应链，提高我国产业链的韧性和抗风险能力",
+                         "碳边境税:对自身碳排放情况进行梳理，在充分了解碳排放边境调节机制的基础上，分析测算对企业的影响；结合国内和全球“双碳”目标以及企业自身情况，合理预计企业节碳减排空间，估算降低碳排放的具体成本",
+                         "疫情:出入管理，企业防控",
+                         "先进技术出口管制:加强产业链薄弱环节科技攻关，提升关键核心技术支持能力",
+                         "环境保护与资源利用:优先采用可持续发展战略，协调绿色环保与产业链收益的平衡",
+                         "美去中国化产业链转移风险:全方面加强国际交流合作，积极主动融入全球科技创新网络"]
+            if n == 4:
+                solut = ["资金运营风险:资金风险预警监测机制进行建立和完善",
+                         "国家宏观经济政策:实时跟踪，及时把控",
+                         "企业内部控制问题:建立科学完密的企业内部控制系统，及时改革",
+                         "财政政策方向:追踪财政政策变化动向，及时根据时势变化企业财政方针",
+                         "投资风险:投资前进行全面完整的投资分析",
+                         "投资前进行全面完整的投资分析:建立良好的企业形象"]
+            return solut
+
+        smallrate4 = Markov(4)
+        smallrate2 = Markov(2)
+        smallrate3 = Markov(3)
+        smallrate6 = Markov(6)
+        smallrate7 = Markov(7)
+        # 第一种
+        letter_bn = BayesianNetwork(
+            [('ZY', 'Y'), ('JG', 'Y'), ('QZ', 'Y'), ('YL', 'Y'), ('Y', 'S'), ('KC', 'Q'), ('XS', 'Q'), ('Q', 'S')])
+        zy_cpd = TabularCPD(variable='ZY', variable_card=2,
+                            values=smallrate4[0])
+        jg_cpd = TabularCPD(variable='JG', variable_card=2,
+                            values=smallrate4[1])
+        qz_cpd = TabularCPD(variable='QZ', variable_card=2,
+                            values=smallrate4[2])
+        yl_cpd = TabularCPD(variable='YL', variable_card=2,
+                            values=smallrate4[3])
+        y_cpd = TabularCPD(variable='Y', variable_card=2,
+                           values=[[0.2, 0.4, 0.4, 0.4, 0.4, 0.6, 0.6, 0.6, 0.6, 0.6, 0.6, 0.8, 0.8, 0.8, 0.8, 0.9],
+                                   [0.8, 0.6, 0.6, 0.6, 0.6, 0.4, 0.4, 0.4, 0.4, 0.4, 0.4, 0.2, 0.2, 0.2, 0.2, 0.1]],
+                           evidence=['ZY', 'JG', 'QZ', 'YL'], evidence_card=[2, 2, 2, 2])
+        s_cpd = TabularCPD(variable='S', variable_card=2, values=[[0.2, 0.6, 0.6, 0.9], [0.8, 0.4, 0.4, 0.1]],
+                           evidence=['Y', 'Q'], evidence_card=[2, 2])
+        kc_cpd = TabularCPD(variable='KC', variable_card=2,
+                            values=smallrate2[0])
+        xs_cpd = TabularCPD(variable='XS', variable_card=2,
+                            values=smallrate2[1])
+        q_cpd = TabularCPD(variable='Q', variable_card=2, values=[[0.2, 0.6, 0.6, 0.9], [0.8, 0.4, 0.4, 0.1]],
+                           evidence=['KC', 'XS'], evidence_card=[2, 2])
+        letter_bn.add_cpds(zy_cpd, jg_cpd, qz_cpd, yl_cpd,
+                           y_cpd, s_cpd, kc_cpd, xs_cpd, q_cpd)
+        letter_bn.check_model()  # 检查构建的模型是否合理
+        letter_bn.get_cpds()  # 网络中条件概率依赖关系
+        letter_infer = VariableElimination(letter_bn)  # 变量消除
+        # m = 6
+        # c = ['ZY', 'JG', 'QZ', 'YL', 'KC', 'XS']
+        # d = 'S'
+        # a = np.zeros(m)
+        # fun(a, c, d, 0)
+        # # print("1:",sum1/64)
+        # rate = round(sum1 / 64, 2)
+        rate1 = letter_infer.query(['S'])
+        rate = round(rate1.values[1], 2)
+        ratedate.append(rate)
+        # 第二种
+        sum1 = 0
+        letter_xn = BayesianNetwork(
+            [('A1', 'A'), ('A2', 'A'), ('A3', 'A'), ('B1', 'B'), ('B2', 'B'), ('B3', 'B'), ('B4', 'B'),
+             ('C1', 'C'), ('C2', 'C'), ('C3', 'C'), ('D1',
+                                                     'D'), ('D2', 'D'), ('D3', 'D'), ('D4', 'D'),
+             ('A', 'X'), ('B', 'X'), ('C', 'X'), ('D', 'X')])
+        a1_cpd = TabularCPD(variable='A1', variable_card=2,
+                            values=smallrate3[0])
+        a2_cpd = TabularCPD(variable='A2', variable_card=2,
+                            values=smallrate3[1])
+        a3_cpd = TabularCPD(variable='A3', variable_card=2,
+                            values=smallrate3[2])
+        a_cpd = TabularCPD(variable='A', variable_card=2,
+                           values=[[0.2, 0.4, 0.4, 0.4, 0.7, 0.7, 0.7, 0.9],
+                                   [0.8, 0.6, 0.6, 0.6, 0.3, 0.3, 0.3, 0.1]],
+                           evidence=['A1', 'A2', 'A3'], evidence_card=[2, 2, 2])
+        b1_cpd = TabularCPD(variable='B1', variable_card=2,
+                            values=smallrate4[0])
+        b2_cpd = TabularCPD(variable='B2', variable_card=2,
+                            values=smallrate4[1])
+        b3_cpd = TabularCPD(variable='B3', variable_card=2,
+                            values=smallrate4[2])
+        b4_cpd = TabularCPD(variable='B4', variable_card=2,
+                            values=smallrate4[3])
+        b_cpd = TabularCPD(variable='B', variable_card=2,
+                           values=[[0.2, 0.4, 0.4, 0.4, 0.4, 0.6, 0.6, 0.6, 0.6, 0.6, 0.6, 0.8, 0.8, 0.8, 0.8, 0.9],
+                                   [0.8, 0.6, 0.6, 0.6, 0.6, 0.4, 0.4, 0.4, 0.4, 0.4, 0.4, 0.2, 0.2, 0.2, 0.2, 0.1]],
+                           evidence=['B1', 'B2', 'B3', 'B4'], evidence_card=[2, 2, 2, 2])
+        c1_cpd = TabularCPD(variable='C1', variable_card=2,
+                            values=smallrate3[0])
+        c2_cpd = TabularCPD(variable='C2', variable_card=2,
+                            values=smallrate3[1])
+        c3_cpd = TabularCPD(variable='C3', variable_card=2,
+                            values=smallrate3[2])
+        c_cpd = TabularCPD(variable='C', variable_card=2,
+                           values=[[0.2, 0.4, 0.4, 0.4, 0.7, 0.7, 0.7, 0.9],
+                                   [0.8, 0.6, 0.6, 0.6, 0.3, 0.3, 0.3, 0.1]],
+                           evidence=['C1', 'C2', 'C3'], evidence_card=[2, 2, 2])
+        d1_cpd = TabularCPD(variable='D1', variable_card=2,
+                            values=smallrate4[0])
+        d2_cpd = TabularCPD(variable='D2', variable_card=2,
+                            values=smallrate4[1])
+        d3_cpd = TabularCPD(variable='D3', variable_card=2,
+                            values=smallrate4[2])
+        d4_cpd = TabularCPD(variable='D4', variable_card=2,
+                            values=smallrate4[3])
+        d_cpd = TabularCPD(variable='D', variable_card=2,
+                           values=[[0.2, 0.4, 0.4, 0.4, 0.4, 0.6, 0.6, 0.6, 0.6, 0.6, 0.6, 0.8, 0.8, 0.8, 0.8, 0.9],
+                                   [0.8, 0.6, 0.6, 0.6, 0.6, 0.4, 0.4, 0.4, 0.4, 0.4, 0.4, 0.2, 0.2, 0.2, 0.2, 0.1]],
+                           evidence=['D1', 'D2', 'D3', 'D4'], evidence_card=[2, 2, 2, 2])
+        x_cpd = TabularCPD(variable='X', variable_card=2,
+                           values=[[0.2, 0.4, 0.4, 0.4, 0.4, 0.6, 0.6, 0.6, 0.6, 0.6, 0.6, 0.8, 0.8, 0.8, 0.8, 0.9],
+                                   [0.8, 0.6, 0.6, 0.6, 0.6, 0.4, 0.4, 0.4, 0.4, 0.4, 0.4, 0.2, 0.2, 0.2, 0.2, 0.1]],
+                           evidence=['A', 'B', 'C', 'D'], evidence_card=[2, 2, 2, 2])
+        letter_xn.add_cpds(a1_cpd, a2_cpd, a3_cpd, a_cpd, b1_cpd, b2_cpd, b3_cpd, b4_cpd, b_cpd, c1_cpd, c2_cpd,
+                           c3_cpd, c_cpd, d1_cpd, d2_cpd, d3_cpd, d4_cpd, d_cpd, x_cpd)
+        # letter_xn.check_model() # 检查构建的模型是否合理
+        # letter_xn.get_cpds() # 网络中条件概率依赖关系
+        letter_infer = VariableElimination(letter_xn)  # 变量消除
+        # m = 14
+        # c = ['A1', 'A2', 'A3', 'B1', 'B2', 'B3', 'B4', 'C1', 'C2', 'C3', 'D1', 'D2', 'D3', 'D4']
+        # d = 'X'
+        # a = np.zeros(m)
+        # fun(a, c, d, 0)
+        # # print("2:",sum1 / (2 ** 14))
+        # rate = round(sum1 / (2 ** 14), 2)
+        rate1 = letter_infer.query(['X'])
+        rate = round(rate1.values[1], 2)
+        ratedate.append(rate)
+        # 第三种
+        sum1 = 0
+        letter_en = BayesianNetwork(
+            [('E1', 'E'), ('E2', 'E'), ('E3', 'E'), ('E4', 'E')])
+        e1_cpd = TabularCPD(variable='E1', variable_card=2,
+                            values=smallrate4[0])
+        e2_cpd = TabularCPD(variable='E2', variable_card=2,
+                            values=smallrate4[1])
+        e3_cpd = TabularCPD(variable='E3', variable_card=2,
+                            values=smallrate4[2])
+        e4_cpd = TabularCPD(variable='E4', variable_card=2,
+                            values=smallrate4[3])
+        e_cpd = TabularCPD(variable='E', variable_card=2,
+                           values=[[0.2, 0.4, 0.4, 0.4, 0.4, 0.6, 0.6, 0.6, 0.6, 0.6, 0.6, 0.8, 0.8, 0.8, 0.8, 0.9],
+                                   [0.8, 0.6, 0.6, 0.6, 0.6, 0.4, 0.4, 0.4, 0.4, 0.4, 0.4, 0.2, 0.2, 0.2, 0.2, 0.1]],
+                           evidence=['E1', 'E2', 'E3', 'E4'], evidence_card=[2, 2, 2, 2])
+        letter_en.add_cpds(e1_cpd, e2_cpd, e3_cpd, e4_cpd, e_cpd)
+        letter_en.check_model()  # 检查构建的模型是否合理
+        letter_en.get_cpds()  # 网络中条件概率依赖关系
+        letter_infer = VariableElimination(letter_en)  # 变量消除
+        # m = 4
+        # c = ['E1', 'E2', 'E3', 'E4']
+        # d = 'E'
+        # a = np.zeros(m)
+        # fun(a, c, d, 0)
+        # # print("3:",sum1 / 16)
+        # rate = round(sum1 / 16, 2)
+        rate1 = letter_infer.query(['E'])
+        rate = round(rate1.values[1], 2)
+        ratedate.append(rate)
+
+        # 第四种
+        sum1 = 0
+        letter_fn = BayesianNetwork(
+            [('F1', 'F'), ('F2', 'F'), ('F3', 'F'), ('F4', 'F'), ('F5', 'F'), ('F6', 'F'), ('F7', 'F')])
+        f1_cpd = TabularCPD(variable='F1', variable_card=2,
+                            values=smallrate7[0])
+        f2_cpd = TabularCPD(variable='F2', variable_card=2,
+                            values=smallrate7[1])
+        f3_cpd = TabularCPD(variable='F3', variable_card=2,
+                            values=smallrate7[2])
+        f4_cpd = TabularCPD(variable='F4', variable_card=2,
+                            values=smallrate7[3])
+        f5_cpd = TabularCPD(variable='F5', variable_card=2,
+                            values=smallrate7[4])
+        f6_cpd = TabularCPD(variable='F6', variable_card=2,
+                            values=smallrate7[5])
+        f7_cpd = TabularCPD(variable='F7', variable_card=2,
+                            values=smallrate7[6])
+        f_cpd = TabularCPD(variable='F', variable_card=2,
+                           values=[
+                               [0.1, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.3, 0.3, 0.3, 0.3, 0.3, 0.3, 0.3, 0.3, 0.3, 0.3,
+                                0.3, 0.3, 0.3, 0.3, 0.3, 0.3, 0.3, 0.3, 0.3, 0.3, 0.3, 0.4, 0.4, 0.4, 0.4, 0.4, 0.4, 0.4, 0.4, 0.4, 0.4, 0.4, 0.4, 0.4, 0.4, 0.4, 0.4, 0.4,
+                                0.4, 0.4, 0.4, 0.4, 0.4, 0.4, 0.4, 0.4, 0.4, 0.4, 0.4, 0.4, 0.4, 0.4, 0.4, 0.4, 0.4, 0.4, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5,
+                                0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.6, 0.6, 0.6, 0.6, 0.6, 0.6, 0.6, 0.6, 0.6, 0.6, 0.6, 0.6, 0.6, 0.6, 0.6, 0.6, 0.6,
+                                0.6, 0.6, 0.6, 0.6, 0.7, 0.7, 0.7, 0.7, 0.7, 0.7, 0.7, 0.9],
+                               [0.9, 0.8, 0.8, 0.8, 0.8, 0.8, 0.8, 0.8, 0.7, 0.7, 0.7, 0.7, 0.7, 0.7, 0.7, 0.7, 0.7, 0.7,
+                                0.7, 0.7, 0.7, 0.7, 0.7, 0.7, 0.7, 0.7, 0.7, 0.7, 0.7, 0.6, 0.6, 0.6, 0.6, 0.6, 0.6, 0.6, 0.6, 0.6, 0.6, 0.6, 0.6, 0.6, 0.6, 0.6, 0.6, 0.6,
+                                0.6, 0.6, 0.6, 0.6, 0.6, 0.6, 0.6, 0.6, 0.6, 0.6, 0.6, 0.6, 0.6, 0.6, 0.6, 0.6, 0.6, 0.6, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5,
+                                0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.4, 0.4, 0.4, 0.4, 0.4, 0.4, 0.4, 0.4, 0.4, 0.4, 0.4, 0.4, 0.4, 0.4, 0.4, 0.4, 0.4,
+                                0.4, 0.4, 0.4, 0.4, 0.3, 0.3, 0.3, 0.3, 0.3, 0.3, 0.3, 0.1]],
+                           evidence=['F1', 'F2', 'F3', 'F4', 'F5', 'F6', 'F7'], evidence_card=[2, 2, 2, 2, 2, 2, 2])
+        letter_fn.add_cpds(f1_cpd, f2_cpd, f3_cpd, f4_cpd,
+                           f5_cpd, f6_cpd, f7_cpd, f_cpd)
+        letter_fn.check_model()  # 检查构建的模型是否合理
+        letter_fn.get_cpds()  # 网络中条件概率依赖关系
+        letter_infer = VariableElimination(letter_fn)  # 变量消除
+        # m = 7
+        # c = ['F1', 'F2', 'F3', 'F4', 'F5', 'F6', 'F7']
+        # d = 'F'
+        # a = np.zeros(m)
+        # fun(a, c, d, 0)
+        # # print("4:",sum1 / (2 ** 7))
+        # rate = round(sum1 / (2 ** 7), 2)
+        rate1 = letter_infer.query(['F'])
+        rate = round(rate1.values[1], 2)
+        ratedate.append(rate)
+
+        # 第五种
+        sum1 = 0
+        letter_gn = BayesianNetwork(
+            [('G1', 'G'), ('G2', 'G'), ('G3', 'G'), ('G4', 'G'), ('G5', 'G'), ('G6', 'G')])
+        g1_cpd = TabularCPD(variable='G1', variable_card=2,
+                            values=smallrate6[0])
+        g2_cpd = TabularCPD(variable='G2', variable_card=2,
+                            values=smallrate6[1])
+        g3_cpd = TabularCPD(variable='G3', variable_card=2,
+                            values=smallrate6[2])
+        g4_cpd = TabularCPD(variable='G4', variable_card=2,
+                            values=smallrate6[3])
+        g5_cpd = TabularCPD(variable='G5', variable_card=2,
+                            values=smallrate6[4])
+        g6_cpd = TabularCPD(variable='G6', variable_card=2,
+                            values=smallrate6[5])
+        g_cpd = TabularCPD(variable='G', variable_card=2,
+                           values=[
+                               [0.1, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.4, 0.4, 0.4, 0.4, 0.4, 0.4, 0.4, 0.4, 0.4, 0.4, 0.4,
+                                0.4, 0.4, 0.4, 0.4, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5,
+                                0.5, 0.5, 0.5, 0.6, 0.6, 0.6, 0.6, 0.6, 0.6, 0.6, 0.6, 0.6, 0.6, 0.6, 0.6, 0.6, 0.6, 0.6, 0.7, 0.7,
+                                0.7, 0.7, 0.7, 0.7, 0.9],
+                               [0.9, 0.8, 0.8, 0.8, 0.8, 0.8, 0.8, 0.6, 0.6, 0.6, 0.6, 0.6, 0.6, 0.6, 0.6, 0.6, 0.6, 0.6,
+                                0.6, 0.6, 0.6, 0.6, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5,
+                                0.5, 0.5, 0.5, 0.4, 0.4, 0.4, 0.4, 0.4, 0.4, 0.4, 0.4, 0.4, 0.4, 0.4, 0.4, 0.4, 0.4, 0.4, 0.3, 0.3,
+                                0.3, 0.3, 0.3, 0.3, 0.1]],
+                           evidence=['G1', 'G2', 'G3', 'G4', 'G5', 'G6'], evidence_card=[2, 2, 2, 2, 2, 2])
+        letter_gn.add_cpds(g1_cpd, g2_cpd, g3_cpd,
+                           g4_cpd, g5_cpd, g6_cpd, g_cpd)
+        letter_gn.check_model()  # 检查构建的模型是否合理
+        letter_gn.get_cpds()  # 网络中条件概率依赖关系
+        letter_infer = VariableElimination(letter_gn)  # 变量消除
+        # m = 6
+        # c = ['G1', 'G2', 'G3', 'G4', 'G5', 'G6']
+        # d = 'G'
+        # a = np.zeros(m)
+        # fun(a, c, d, 0)
+        # # print("5:",sum1 / (2 ** 6))
+        # rate = round(sum1 / (2 ** 6), 2)
+        rate1 = letter_infer.query(['G'])
+        rate = round(rate1.values[1], 2)
+        ratedate.append(rate)
+        # for i in ratedate:
+        #     print(i)
+        name = ["上游风险", "下游风险", "市场风险", "外部风险", "内部管理风险"]
+        # for i in range(5):
+        #     print(name[i], ratedate[i])
+        m = 0
+        sum = 0
+        max = 0
+        for i in ratedate:
+            sum = sum+i
+            if i >= max:
+                max = i
+        scor = round(100 - 100 * (sum / 5), 2)
+        for i in range(5):
+            if ratedate[i] == max:
+                m = i
+        riskname = name[m]
+        solut = solution(m)
+
+        model.model_riskstatus = 1
+        model.model_riskscore = scor
+        model.model_riskmain = riskname
+        model.model_riskmethods = json.dumps(solut)
+        model.model_risklist = json.dumps(ratedate)
+        model.save()  # 调用save()方法将更改保存到数据库
+    else:
+        scor = model.model_riskscore
+        riskname = model.model_riskmain
+        solut = json.loads(model.model_riskmethods)
+        ratedate = json.loads(model.model_risklist)
 
     return JsonResponse({
         'result_code': 0,
         'result_msg': "风险评估成功",
-        'model_data': model,
-        'risk_item_list': [],
-        'risk_main': "所会发生的主要风险",
-        'risk_method': "规避风险的主要措施"
+        'risk_score': scor,
+        'risk_main': riskname,
+        'risk_method': solut,
+        'risk_scorelist': ratedate,
     })
