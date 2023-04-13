@@ -692,7 +692,6 @@ def riskanalyse(request):
                     else:
                         a.append(k)
                 b.append(a)
-            # print(b)
             matrix1 = np.matrix(b)
             c = []
             k = 1.0
@@ -705,13 +704,10 @@ def riskanalyse(request):
                     k = k - l
                 else:
                     c.append(k)
-            # print(c)
             vector1 = np.matrix(c)
             for i in range(100):
                 vector2 = vector1
                 vector1 = vector1 * matrix1
-                # print(i)
-                # print(vector1)
                 if ((vector2 == vector1).all()):
                     break
             li = vector1.tolist()
@@ -722,7 +718,6 @@ def riskanalyse(request):
                 mid = [mid1, mid2]
                 ve.append(mid)
             return ve
-            # return vector1.tolist()
 
         sum1 = 0  # 初始化sum1
         ratedate = []  # 存每种风险的概率
@@ -820,13 +815,6 @@ def riskanalyse(request):
         letter_bn.check_model()  # 检查构建的模型是否合理
         letter_bn.get_cpds()  # 网络中条件概率依赖关系
         letter_infer = VariableElimination(letter_bn)  # 变量消除
-        # m = 6
-        # c = ['ZY', 'JG', 'QZ', 'YL', 'KC', 'XS']
-        # d = 'S'
-        # a = np.zeros(m)
-        # fun(a, c, d, 0)
-        # # print("1:",sum1/64)
-        # rate = round(sum1 / 64, 2)
         rate1 = letter_infer.query(['S'])
         rate = round(rate1.values[1], 2)
         ratedate.append(rate)
@@ -887,16 +875,7 @@ def riskanalyse(request):
                            evidence=['A', 'B', 'C', 'D'], evidence_card=[2, 2, 2, 2])
         letter_xn.add_cpds(a1_cpd, a2_cpd, a3_cpd, a_cpd, b1_cpd, b2_cpd, b3_cpd, b4_cpd, b_cpd, c1_cpd, c2_cpd,
                            c3_cpd, c_cpd, d1_cpd, d2_cpd, d3_cpd, d4_cpd, d_cpd, x_cpd)
-        # letter_xn.check_model() # 检查构建的模型是否合理
-        # letter_xn.get_cpds() # 网络中条件概率依赖关系
         letter_infer = VariableElimination(letter_xn)  # 变量消除
-        # m = 14
-        # c = ['A1', 'A2', 'A3', 'B1', 'B2', 'B3', 'B4', 'C1', 'C2', 'C3', 'D1', 'D2', 'D3', 'D4']
-        # d = 'X'
-        # a = np.zeros(m)
-        # fun(a, c, d, 0)
-        # # print("2:",sum1 / (2 ** 14))
-        # rate = round(sum1 / (2 ** 14), 2)
         rate1 = letter_infer.query(['X'])
         rate = round(rate1.values[1], 2)
         ratedate.append(rate)
@@ -920,13 +899,6 @@ def riskanalyse(request):
         letter_en.check_model()  # 检查构建的模型是否合理
         letter_en.get_cpds()  # 网络中条件概率依赖关系
         letter_infer = VariableElimination(letter_en)  # 变量消除
-        # m = 4
-        # c = ['E1', 'E2', 'E3', 'E4']
-        # d = 'E'
-        # a = np.zeros(m)
-        # fun(a, c, d, 0)
-        # # print("3:",sum1 / 16)
-        # rate = round(sum1 / 16, 2)
         rate1 = letter_infer.query(['E'])
         rate = round(rate1.values[1], 2)
         ratedate.append(rate)
@@ -967,13 +939,6 @@ def riskanalyse(request):
         letter_fn.check_model()  # 检查构建的模型是否合理
         letter_fn.get_cpds()  # 网络中条件概率依赖关系
         letter_infer = VariableElimination(letter_fn)  # 变量消除
-        # m = 7
-        # c = ['F1', 'F2', 'F3', 'F4', 'F5', 'F6', 'F7']
-        # d = 'F'
-        # a = np.zeros(m)
-        # fun(a, c, d, 0)
-        # # print("4:",sum1 / (2 ** 7))
-        # rate = round(sum1 / (2 ** 7), 2)
         rate1 = letter_infer.query(['F'])
         rate = round(rate1.values[1], 2)
         ratedate.append(rate)
@@ -1010,21 +975,10 @@ def riskanalyse(request):
         letter_gn.check_model()  # 检查构建的模型是否合理
         letter_gn.get_cpds()  # 网络中条件概率依赖关系
         letter_infer = VariableElimination(letter_gn)  # 变量消除
-        # m = 6
-        # c = ['G1', 'G2', 'G3', 'G4', 'G5', 'G6']
-        # d = 'G'
-        # a = np.zeros(m)
-        # fun(a, c, d, 0)
-        # # print("5:",sum1 / (2 ** 6))
-        # rate = round(sum1 / (2 ** 6), 2)
         rate1 = letter_infer.query(['G'])
         rate = round(rate1.values[1], 2)
         ratedate.append(rate)
-        # for i in ratedate:
-        #     print(i)
         name = ["上游风险", "下游风险", "市场风险", "外部风险", "内部管理风险"]
-        # for i in range(5):
-        #     print(name[i], ratedate[i])
         m = 0
         sum = 0
         max = 0
